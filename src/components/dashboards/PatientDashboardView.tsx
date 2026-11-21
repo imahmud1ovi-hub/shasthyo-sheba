@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useLanguage } from "@/components/LanguageProvider";
 import { formatBdt } from "@/lib/phone";
 import { NavbarUser } from "@/components/Navbar";
@@ -64,9 +65,17 @@ export function PatientDashboardView({
       </div>
 
       <section className="mt-6">
-        <h2 className="text-lg font-bold text-slate-900">
-          {t.dashboards.upcomingAppointments}
-        </h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-lg font-bold text-slate-900">
+            {t.dashboards.upcomingAppointments}
+          </h2>
+          <Link
+            href="/patient/appointments"
+            className="text-xs sm:text-sm font-semibold text-emerald-700 hover:text-emerald-800"
+          >
+            {t.dashboards.manageAppointmentsLink}
+          </Link>
+        </div>
 
         {appointments.length === 0 ? (
           <div className="mt-3 rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500">

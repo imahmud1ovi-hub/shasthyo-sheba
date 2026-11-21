@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { AuthorizationError } from "@/lib/auth/session";
 import { OtpError } from "@/lib/auth/otp";
+import { BookingError } from "@/lib/booking/appointments";
 
 export interface ApiErrorBody {
   ok: false;
@@ -56,6 +57,10 @@ export function handleApiError(err: unknown) {
   }
 
   if (err instanceof OtpError) {
+    return apiError(err.code, err.message, err.statusCode);
+  }
+
+  if (err instanceof BookingError) {
     return apiError(err.code, err.message, err.statusCode);
   }
 

@@ -52,6 +52,14 @@ export function Navbar({ user }: { user: NavbarUser | null }) {
           </Link>
           {user ? (
             <>
+              {(user.role === "PATIENT" || user.role === "ADMIN") && (
+                <Link
+                  href="/patient/appointments"
+                  className="rounded-lg px-2.5 py-1.5 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                >
+                  {t.navMyAppointments}
+                </Link>
+              )}
               <Link
                 href={getDashboardPathForRole(user.role)}
                 className="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs sm:text-sm font-semibold text-emerald-800 hover:bg-emerald-100"
