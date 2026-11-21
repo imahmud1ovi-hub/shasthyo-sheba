@@ -23,8 +23,7 @@ yarn-error.log*
 pnpm-debug.log*
 
 # Local uploads (prescriptions, BM&DC documents)
-/uploads
-uploads/
+/uploads/
 
 # Testing & coverage
 /coverage
