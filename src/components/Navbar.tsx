@@ -30,30 +30,32 @@ export function Navbar({ user }: { user: NavbarUser | null }) {
 
   return (
     <header className="border-b border-slate-200 bg-white sticky top-0 z-20">
-      <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3.5 gap-2">
-        <Link href="/" className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-600 text-white font-bold text-lg shadow-sm">
+      <div className="mx-auto flex flex-wrap max-w-5xl items-center justify-between px-3 sm:px-4 py-3 gap-2">
+        <Link href="/" className="flex items-center gap-2">
+          <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-emerald-600 text-white font-bold text-base sm:text-lg shadow-sm">
             +
           </div>
           <div>
-            <span className="block text-base sm:text-lg font-bold text-slate-900 leading-tight">
+            <span className="block text-sm sm:text-lg font-bold text-slate-900 leading-tight">
               {t.brand}
             </span>
-            <span className="block text-xs text-slate-500">{t.brandSub}</span>
+            <span className="block text-[11px] sm:text-xs text-slate-500">
+              {t.brandSub}
+            </span>
           </div>
         </Link>
 
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2.5">
           <Link
             href="/doctors"
-            className="rounded-lg px-2.5 py-1.5 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-100"
+            className="rounded-lg px-2 py-1.5 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-100"
           >
             {t.navFindDoctors}
           </Link>
           {(!user || user.role === "PATIENT") && (
             <Link
               href="/doctor/register"
-              className="hidden sm:inline-flex rounded-lg px-2.5 py-1.5 text-xs sm:text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
+              className="rounded-lg px-2 py-1.5 text-xs sm:text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
             >
               {t.navDoctorRegister}
             </Link>

@@ -142,8 +142,8 @@ export function DoctorRegisterClient({
                 onChange={(e) => setGender(e.target.value)}
                 className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
               >
-                <option value="MALE">Male / পুরুষ</option>
-                <option value="FEMALE">Female / মহিলা</option>
+                <option value="MALE">{t.discovery.genderMale}</option>
+                <option value="FEMALE">{t.discovery.genderFemale}</option>
               </select>
             </div>
           </div>

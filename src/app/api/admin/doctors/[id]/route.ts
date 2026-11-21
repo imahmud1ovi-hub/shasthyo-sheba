@@ -1,5 +1,10 @@
 import { NextRequest } from "next/server";
-import { apiError, apiSuccess, handleApiError } from "@/lib/api-response";
+import {
+  apiError,
+  apiSuccess,
+  handleApiError,
+  idParamSchema,
+} from "@/lib/api-response";
 import { requireRole } from "@/lib/auth/session";
 import { reviewDoctorRegistration } from "@/lib/admin/manage";
 
@@ -9,11 +14,12 @@ export async function PATCH(
 ) {
   try {
     const session = await requireRole(["ADMIN"]);
+    const { id } = idParamSchema.parse(context.params);
     const body: unknown = await req.json();
 
     const updated = await reviewDoctorRegistration({
       adminUserId: session.userId,
-      doctorProfileId: context.params.id,
+      doctorProfileId: id,
       rawInput: body,
     });
 

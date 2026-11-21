@@ -1,5 +1,10 @@
 import { NextRequest } from "next/server";
-import { apiError, apiSuccess, handleApiError } from "@/lib/api-response";
+import {
+  apiError,
+  apiSuccess,
+  handleApiError,
+  idParamSchema,
+} from "@/lib/api-response";
 import { getApprovedDoctorById } from "@/lib/doctors/search";
 
 export async function GET(
@@ -7,7 +12,8 @@ export async function GET(
   context: { params: { id: string } }
 ) {
   try {
-    const doctor = await getApprovedDoctorById(context.params.id);
+    const { id } = idParamSchema.parse(context.params);
+    const doctor = await getApprovedDoctorById(id);
     if (!doctor) {
       return apiError("NOT_FOUND", "Approved doctor not found.", 404);
     }

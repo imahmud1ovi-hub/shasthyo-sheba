@@ -1,6 +1,11 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { apiError, apiSuccess, handleApiError } from "@/lib/api-response";
+import {
+  apiError,
+  apiSuccess,
+  chamberIdParamSchema,
+  handleApiError,
+} from "@/lib/api-response";
 import { getOrGenerateSlotsForChamberDate } from "@/lib/booking/slots";
 
 export const dynamic = "force-dynamic";
@@ -16,13 +21,11 @@ export async function GET(
   context: { params: { chamberId: string } }
 ) {
   try {
+    const { chamberId } = chamberIdParamSchema.parse(context.params);
     const dateParam = req.nextUrl.searchParams.get("date") ?? "";
     const { date } = querySchema.parse({ date: dateParam });
 
-    const result = await getOrGenerateSlotsForChamberDate(
-      context.params.chamberId,
-      date
-    );
+    const result = await getOrGenerateSlotsForChamberDate(chamberId, date);
 
     if (!result.chamber) {
       return apiError("NOT_FOUND", "Chamber not found.", 404);

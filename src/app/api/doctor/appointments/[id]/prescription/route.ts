@@ -1,5 +1,10 @@
 import { NextRequest } from "next/server";
-import { apiError, apiSuccess, handleApiError } from "@/lib/api-response";
+import {
+  apiError,
+  apiSuccess,
+  handleApiError,
+  idParamSchema,
+} from "@/lib/api-response";
 import { requireRole } from "@/lib/auth/session";
 import { doctorAttachPrescription } from "@/lib/doctors/manage";
 import { saveUploadedFile } from "@/lib/uploads/storage";
@@ -10,6 +15,7 @@ export async function POST(
 ) {
   try {
     const session = await requireRole(["DOCTOR"]);
+    const { id } = idParamSchema.parse(context.params);
     const formData = await req.formData();
     const file = formData.get("prescription");
 
@@ -25,7 +31,7 @@ export async function POST(
     const updated = await doctorAttachPrescription({
       actorUserId: session.userId,
       actorRole: session.role,
-      appointmentId: context.params.id,
+      appointmentId: id,
       prescriptionPath,
     });
 

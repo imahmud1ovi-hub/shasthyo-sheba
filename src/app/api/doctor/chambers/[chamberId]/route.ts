@@ -1,5 +1,10 @@
 import { NextRequest } from "next/server";
-import { apiError, apiSuccess, handleApiError } from "@/lib/api-response";
+import {
+  apiError,
+  apiSuccess,
+  chamberIdParamSchema,
+  handleApiError,
+} from "@/lib/api-response";
 import { requireRole } from "@/lib/auth/session";
 import { updateChamberSchedule } from "@/lib/booking/slots";
 
@@ -9,12 +14,13 @@ export async function PATCH(
 ) {
   try {
     const session = await requireRole(["DOCTOR"]);
+    const { chamberId } = chamberIdParamSchema.parse(context.params);
     const body: unknown = await req.json();
 
     const updated = await updateChamberSchedule(
       session.userId,
       session.role,
-      context.params.chamberId,
+      chamberId,
       body
     );
 

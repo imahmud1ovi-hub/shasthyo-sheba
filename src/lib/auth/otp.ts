@@ -6,6 +6,7 @@ import crypto from "crypto";
 export const OTP_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
 export const OTP_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 export const OTP_MAX_SENDS_PER_HOUR = 5;
+export const OTP_MAX_VERIFY_ATTEMPTS = 5;
 
 export class OtpError extends Error {
   public readonly code:
@@ -100,6 +101,14 @@ export async function verifyOtpForPhone(
       "OTP code has expired. Please request a new OTP.",
       "EXPIRED_OTP",
       400
+    );
+  }
+
+  if (latestOtp.attempts >= OTP_MAX_VERIFY_ATTEMPTS) {
+    throw new OtpError(
+      "Too many incorrect attempts. Please request a new OTP.",
+      "RATE_LIMITED",
+      429
     );
   }
 

@@ -1,11 +1,19 @@
 import { NextResponse } from "next/server";
-import { ZodError } from "zod";
+import { z, ZodError } from "zod";
 import { AuthorizationError } from "@/lib/auth/session";
 import { OtpError } from "@/lib/auth/otp";
 import { BookingError } from "@/lib/booking/appointments";
 import { UploadValidationError } from "@/lib/uploads/storage";
 import { PaymentError } from "@/lib/payments/service";
 import { ReviewError } from "@/lib/reviews/service";
+
+export const idParamSchema = z.object({
+  id: z.string().trim().min(1, "Resource ID is required.").max(64),
+});
+
+export const chamberIdParamSchema = z.object({
+  chamberId: z.string().trim().min(1, "Chamber ID is required.").max(64),
+});
 
 export interface ApiErrorBody {
   ok: false;

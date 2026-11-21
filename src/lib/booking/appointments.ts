@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { notificationProvider } from "@/lib/notifications/notification-provider";
 import { isChamberOpenOnDate } from "@/lib/booking/slots";
 import { paymentProvider } from "@/lib/payments/payment-provider";
+import { recordAuditLog } from "@/lib/audit/audit-log";
 
 export const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 
@@ -506,6 +507,16 @@ export async function listPatientAppointments(
   actorUserId: string,
   actorRole: "PATIENT" | "DOCTOR" | "ADMIN"
 ) {
+  if (actorRole === "ADMIN") {
+    await recordAuditLog({
+      actorUserId,
+      action: "VIEW_PATIENT_APPOINTMENTS",
+      entityType: "Appointment",
+      entityId: "ADMIN_LIST",
+      details: "Admin accessed patient appointments list",
+    });
+  }
+
   return prisma.appointment.findMany({
     where:
       actorRole === "ADMIN"
