@@ -71,6 +71,9 @@ export function BookAppointmentClient({
   const [closedReason, setClosedReason] = useState<string | null>(null);
   const [selectedSlotId, setSelectedSlotId] = useState<string>("");
   const [symptoms, setSymptoms] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<
+    "CASH_AT_CLINIC" | "MOCK_ONLINE"
+  >("CASH_AT_CLINIC");
   const [loadingSlots, setLoadingSlots] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -126,6 +129,7 @@ export function BookAppointmentClient({
         body: JSON.stringify({
           slotId: selectedSlotId,
           symptoms: symptoms.trim() || undefined,
+          paymentMethod,
         }),
       });
       const json = await res.json();
@@ -331,6 +335,37 @@ export function BookAppointmentClient({
               placeholder={t.booking.symptomsPlaceholder}
               className="mt-2 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:border-emerald-600 focus:outline-none"
             />
+          </div>
+
+          {/* 5. Payment Method */}
+          <div>
+            <label className="block text-sm font-bold text-slate-900">
+              {t.booking.paymentMethodLabel}
+            </label>
+            <div className="mt-2 grid gap-2.5 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => setPaymentMethod("CASH_AT_CLINIC")}
+                className={`rounded-xl border p-3.5 text-left text-xs sm:text-sm font-semibold transition ${
+                  paymentMethod === "CASH_AT_CLINIC"
+                    ? "border-emerald-600 bg-emerald-50/70 text-emerald-900 ring-2 ring-emerald-500/20"
+                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                {t.booking.payAtClinicOption}
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaymentMethod("MOCK_ONLINE")}
+                className={`rounded-xl border p-3.5 text-left text-xs sm:text-sm font-semibold transition ${
+                  paymentMethod === "MOCK_ONLINE"
+                    ? "border-emerald-600 bg-emerald-50/70 text-emerald-900 ring-2 ring-emerald-500/20"
+                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                {t.booking.payMockOnlineOption}
+              </button>
+            </div>
           </div>
 
           {/* 5. Fee Summary & Submit */}

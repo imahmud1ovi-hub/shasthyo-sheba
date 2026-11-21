@@ -26,12 +26,14 @@ export async function POST(req: NextRequest) {
   try {
     const session = await requireRole(["PATIENT"]);
     const body: unknown = await req.json();
-    const { slotId, symptoms } = bookAppointmentSchema.parse(body);
+    const { slotId, symptoms, paymentMethod } =
+      bookAppointmentSchema.parse(body);
 
     const appointment = await bookAppointment({
       patientUserId: session.userId,
       slotId,
       symptoms,
+      paymentMethod,
     });
 
     return apiSuccess({ appointment }, 201);

@@ -4,6 +4,8 @@ import { AuthorizationError } from "@/lib/auth/session";
 import { OtpError } from "@/lib/auth/otp";
 import { BookingError } from "@/lib/booking/appointments";
 import { UploadValidationError } from "@/lib/uploads/storage";
+import { PaymentError } from "@/lib/payments/service";
+import { ReviewError } from "@/lib/reviews/service";
 
 export interface ApiErrorBody {
   ok: false;
@@ -67,6 +69,14 @@ export function handleApiError(err: unknown) {
 
   if (err instanceof UploadValidationError) {
     return apiError("INVALID_FILE", err.message, 400);
+  }
+
+  if (err instanceof PaymentError) {
+    return apiError(err.code, err.message, err.statusCode);
+  }
+
+  if (err instanceof ReviewError) {
+    return apiError(err.code, err.message, err.statusCode);
   }
 
   console.error("[API Error]", err);

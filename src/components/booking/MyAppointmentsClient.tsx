@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/components/LanguageProvider";
@@ -46,6 +46,12 @@ interface AppointmentItem {
   payment: {
     status: string;
     method: string;
+    transactionRef?: string | null;
+  } | null;
+  review?: {
+    id: string;
+    rating: number;
+    comment: string | null;
   } | null;
 }
 
@@ -81,6 +87,7 @@ export function MyAppointmentsClient({
   const [tab, setTab] = useState<"UPCOMING" | "PAST">("UPCOMING");
   const [actionError, setActionError] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [payingId, setPayingId] = useState<string | null>(null);
 
   // Reschedule modal state
   const [rescheduleTarget, setRescheduleTarget] =
@@ -90,6 +97,14 @@ export function MyAppointmentsClient({
   const [selectedNewSlotId, setSelectedNewSlotId] = useState("");
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [rescheduling, setRescheduling] = useState(false);
+
+  // Review modal state
+  const [reviewTarget, setReviewTarget] = useState<AppointmentItem | null>(
+    null
+  );
+  const [rating, setRating] = useState<number>(5);
+  const [comment, setComment] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   const nowMs = Date.now();
 
@@ -164,6 +179,28 @@ export function MyAppointmentsClient({
     }
   };
 
+  const handlePayOnline = async (appointmentId: string) => {
+    setActionError(null);
+    setPayingId(appointmentId);
+    try {
+      const res = await fetch(`/api/appointments/${appointmentId}/pay`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ method: "MOCK_ONLINE" }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        setActionError(json.error?.message || "Payment failed.");
+        return;
+      }
+      router.refresh();
+    } catch {
+      setActionError("Network error while processing payment.");
+    } finally {
+      setPayingId(null);
+    }
+  };
+
   const handleConfirmReschedule = async () => {
     if (!rescheduleTarget || !selectedNewSlotId) return;
     setActionError(null);
@@ -191,6 +228,40 @@ export function MyAppointmentsClient({
       setActionError("Network error while rescheduling appointment.");
     } finally {
       setRescheduling(false);
+    }
+  };
+
+  const handleSubmitReview = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!reviewTarget) return;
+    setActionError(null);
+    setSubmittingReview(true);
+
+    try {
+      const res = await fetch(
+        `/api/appointments/${reviewTarget.id}/review`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            rating,
+            comment: comment.trim() || undefined,
+          }),
+        }
+      );
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        setActionError(json.error?.message || "Failed to submit review.");
+        return;
+      }
+      setReviewTarget(null);
+      setComment("");
+      setRating(5);
+      router.refresh();
+    } catch {
+      setActionError("Network error while submitting review.");
+    } finally {
+      setSubmittingReview(false);
     }
   };
 
@@ -288,6 +359,7 @@ export function MyAppointmentsClient({
             const canModify =
               (appt.status === "CONFIRMED" || appt.status === "PENDING") &&
               apptMs - nowMs >= TWO_HOURS_MS;
+            const isPaid = appt.payment?.status === "PAID";
 
             return (
               <div
@@ -302,7 +374,8 @@ export function MyAppointmentsClient({
                     </span>
                     <span
                       className={`inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-semibold ${
-                        appt.status === "CONFIRMED"
+                        appt.status === "CONFIRMED" ||
+                        appt.status === "COMPLETED"
                           ? "bg-emerald-50 text-emerald-800"
                           : appt.status === "CANCELLED"
                             ? "bg-red-50 text-red-700"
@@ -310,6 +383,17 @@ export function MyAppointmentsClient({
                       }`}
                     >
                       {appt.status}
+                    </span>
+                    <span
+                      className={`inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-semibold ${
+                        isPaid
+                          ? "bg-emerald-100 text-emerald-900"
+                          : "bg-amber-50 text-amber-800"
+                      }`}
+                    >
+                      {isPaid
+                        ? t.myAppointments.paymentPaidBadge
+                        : t.myAppointments.paymentPendingClinicBadge}
                     </span>
                     <span className="text-xs font-bold text-slate-800">
                       {appt.dateStr} • {appt.startTime} - {appt.endTime}
@@ -338,16 +422,32 @@ export function MyAppointmentsClient({
                       {appt.symptoms}
                     </p>
                   )}
-                  {appt.prescriptionPath && (
-                    <a
-                      href={`/api/uploads/${appt.prescriptionPath}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-2 inline-flex items-center rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
-                    >
-                      {t.myAppointments.viewPrescriptionLink}
-                    </a>
-                  )}
+
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    {appt.prescriptionPath && (
+                      <a
+                        href={`/api/uploads/${appt.prescriptionPath}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
+                      >
+                        {t.myAppointments.viewPrescriptionLink}
+                      </a>
+                    )}
+
+                    {/* Review Badge if already reviewed */}
+                    {appt.review && (
+                      <div className="inline-flex items-center gap-1.5 rounded-lg bg-amber-50 border border-amber-200 px-2.5 py-1 text-xs font-semibold text-amber-900">
+                        <span>{t.myAppointments.reviewedBadge}</span>
+                        <span>{"★".repeat(appt.review.rating)}</span>
+                        {appt.review.comment && (
+                          <span className="font-normal text-slate-700">
+                            “{appt.review.comment}”
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="sm:text-right border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-100 flex flex-col sm:items-end justify-between gap-3">
@@ -355,46 +455,78 @@ export function MyAppointmentsClient({
                     <p className="text-sm font-extrabold text-emerald-700">
                       {t.dashboards.feeLabel}: {formatBdt(appt.feeBdt)}
                     </p>
-                    {appt.payment && (
-                      <p className="text-xs text-slate-500">
-                        {appt.payment.method} ({appt.payment.status})
+                    {appt.payment?.transactionRef && (
+                      <p className="text-[11px] font-mono text-slate-400">
+                        Ref: {appt.payment.transactionRef}
                       </p>
                     )}
                   </div>
 
-                  {tab === "UPCOMING" && (
-                    <div className="flex flex-wrap gap-2">
-                      {canModify ? (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setRescheduleTarget(appt);
-                              setNewDateStr(appt.dateStr);
-                              setActionError(null);
-                            }}
-                            className="rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50"
-                          >
-                            {t.myAppointments.rescheduleBtn}
-                          </button>
-                          <button
-                            type="button"
-                            disabled={cancellingId === appt.id}
-                            onClick={() => handleCancel(appt.id)}
-                            className="rounded-xl border border-red-200 bg-red-50 px-3.5 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
-                          >
-                            {cancellingId === appt.id
-                              ? t.myAppointments.cancellingBtn
-                              : t.myAppointments.cancelBtn}
-                          </button>
-                        </>
-                      ) : (
-                        <span className="rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-800">
-                          {t.myAppointments.twoHourLockNotice}
-                        </span>
-                      )}
-                    </div>
-                  )}
+                  <div className="flex flex-wrap sm:justify-end gap-2">
+                    {/* Pay Online Now (Mock) button for unpaid non-cancelled appointments */}
+                    {!isPaid && appt.status !== "CANCELLED" && (
+                      <button
+                        type="button"
+                        disabled={payingId === appt.id}
+                        onClick={() => handlePayOnline(appt.id)}
+                        className="rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                      >
+                        {payingId === appt.id
+                          ? t.myAppointments.payingBtn
+                          : t.myAppointments.payOnlineNowBtn}
+                      </button>
+                    )}
+
+                    {/* Write Review button for COMPLETED appointments without a review */}
+                    {appt.status === "COMPLETED" && !appt.review && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setReviewTarget(appt);
+                          setRating(5);
+                          setComment("");
+                          setActionError(null);
+                        }}
+                        className="rounded-xl bg-amber-500 px-3.5 py-2 text-xs font-bold text-white hover:bg-amber-600"
+                      >
+                        {t.myAppointments.writeReviewBtn}
+                      </button>
+                    )}
+
+                    {tab === "UPCOMING" && (
+                      <>
+                        {canModify ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setRescheduleTarget(appt);
+                                setNewDateStr(appt.dateStr);
+                                setActionError(null);
+                              }}
+                              className="rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50"
+                            >
+                              {t.myAppointments.rescheduleBtn}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={cancellingId === appt.id}
+                              onClick={() => handleCancel(appt.id)}
+                              className="rounded-xl border border-red-200 bg-red-50 px-3.5 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
+                            >
+                              {cancellingId === appt.id
+                                ? t.myAppointments.cancellingBtn
+                                : t.myAppointments.cancelBtn}
+                            </button>
+                          </>
+                        ) : (
+                          <span className="rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-800">
+                            {t.myAppointments.twoHourLockNotice}
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             );
@@ -469,9 +601,7 @@ export function MyAppointmentsClient({
                               : "border-slate-200 bg-white text-slate-800 hover:border-emerald-500"
                         }`}
                       >
-                        <div className="font-bold">
-                          #{slot.serialNumber}
-                        </div>
+                        <div className="font-bold">#{slot.serialNumber}</div>
                         <div>
                           {slot.startTime} - {slot.endTime}
                         </div>
@@ -502,6 +632,86 @@ export function MyAppointmentsClient({
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Review Submission Modal */}
+      {reviewTarget && (
+        <div className="fixed inset-0 z-30 flex items-center justify-center bg-slate-900/50 p-4">
+          <form
+            onSubmit={handleSubmitReview}
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl space-y-4"
+          >
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">
+                {t.myAppointments.reviewModalTitle}
+              </h2>
+              <p className="mt-1 text-xs text-slate-600">
+                {lang === "bn"
+                  ? reviewTarget.doctor.titleBn
+                  : reviewTarget.doctor.titleEn}{" "}
+                ({reviewTarget.dateStr})
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700">
+                {t.myAppointments.ratingLabel}
+              </label>
+              <div className="mt-2 flex items-center gap-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setRating(star)}
+                    className={`h-10 w-10 rounded-xl border text-base font-bold transition ${
+                      star <= rating
+                        ? "border-amber-400 bg-amber-100 text-amber-700"
+                        : "border-slate-200 bg-slate-50 text-slate-400"
+                    }`}
+                  >
+                    ★
+                  </button>
+                ))}
+                <span className="ml-2 text-sm font-bold text-slate-700">
+                  {rating} / 5
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700">
+                {t.myAppointments.commentLabel}
+              </label>
+              <textarea
+                rows={3}
+                maxLength={600}
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                placeholder={t.myAppointments.commentPlaceholder}
+                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs sm:text-sm"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setReviewTarget(null)}
+                className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700"
+              >
+                {t.myAppointments.closeModalBtn}
+              </button>
+              <button
+                type="submit"
+                disabled={submittingReview}
+                className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {submittingReview
+                  ? t.myAppointments.submittingReviewBtn
+                  : t.myAppointments.submitReviewBtn}
+              </button>
+            </div>
+          </form>
         </div>
       )}
 

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { notificationProvider } from "@/lib/notifications/notification-provider";
 import { isChamberOpenOnDate } from "@/lib/booking/slots";
+import { paymentProvider } from "@/lib/payments/payment-provider";
 
 export const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 
@@ -34,6 +35,10 @@ export class BookingError extends Error {
 export const bookAppointmentSchema = z.object({
   slotId: z.string().min(1, "Slot ID is required."),
   symptoms: z.string().trim().max(500).optional(),
+  paymentMethod: z
+    .enum(["CASH_AT_CLINIC", "MOCK_ONLINE"])
+    .optional()
+    .default("CASH_AT_CLINIC"),
 });
 
 export const cancelAppointmentSchema = z.object({
@@ -63,9 +68,16 @@ export async function bookAppointment(params: {
   patientUserId: string;
   slotId: string;
   symptoms?: string;
+  paymentMethod?: "CASH_AT_CLINIC" | "MOCK_ONLINE";
   now?: Date;
 }) {
-  const { patientUserId, slotId, symptoms, now = new Date() } = params;
+  const {
+    patientUserId,
+    slotId,
+    symptoms,
+    paymentMethod = "CASH_AT_CLINIC",
+    now = new Date(),
+  } = params;
 
   const slot = await prisma.availabilitySlot.findUnique({
     where: { id: slotId },
@@ -144,6 +156,13 @@ export async function bookAppointment(params: {
         );
       }
 
+      const paymentOutcome = await paymentProvider.processPayment({
+        appointmentId: slot.id,
+        amountBdt: slot.chamber.feeBdt,
+        method: paymentMethod,
+        patientPhone: patientUserId,
+      });
+
       // 2. Create Appointment with unique activeSlotKey = slot.id (DB-enforced unique constraint)
       const created = await tx.appointment.create({
         data: {
@@ -163,11 +182,10 @@ export async function bookAppointment(params: {
           payment: {
             create: {
               amountBdt: slot.chamber.feeBdt,
-              method: "CASH_AT_CLINIC",
-              status: "PENDING",
-              transactionRef: `SER-${Date.now()}-${Math.floor(
-                Math.random() * 10000
-              )}`,
+              method: paymentOutcome.method,
+              status: paymentOutcome.status,
+              transactionRef: paymentOutcome.transactionRef,
+              paidAt: paymentOutcome.paidAt,
             },
           },
         },
