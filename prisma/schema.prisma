@@ -6,3 +6,314 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+enum UserRole {
+  PATIENT
+  DOCTOR
+  ADMIN
+}
+
+enum Language {
+  en
+  bn
+}
+
+enum DoctorStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  REFUNDED
+  FAILED
+}
+
+enum PaymentMethod {
+  CASH_AT_CLINIC
+  MOCK_ONLINE
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+model User {
+  id            String          @id @default(cuid())
+  phone         String          @unique
+  nameEn        String?
+  nameBn        String?
+  role          UserRole        @default(PATIENT)
+  preferredLang Language        @default(en)
+  isActive      Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  patientProfile    PatientProfile?
+  doctorProfile     DoctorProfile?
+  notifications     Notification[]
+  auditLogsAsActor  AuditLog[]      @relation("AuditActor")
+  auditLogsAsTarget AuditLog[]      @relation("AuditTarget")
+}
+
+model PatientProfile {
+  id               String        @id @default(cuid())
+  userId           String        @unique
+  dateOfBirth      DateTime?
+  gender           Gender?
+  bloodGroup       String?
+  addressEn        String?
+  addressBn        String?
+  emergencyContact String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+  reviews      Review[]
+}
+
+model DoctorProfile {
+  id               String            @id @default(cuid())
+  userId           String            @unique
+  bmdcNumber       String            @unique
+  status           DoctorStatus      @default(PENDING)
+  gender           Gender            @default(MALE)
+  titleEn          String
+  titleBn          String
+  qualificationsEn String
+  qualificationsBn String
+  bioEn            String?
+  bioBn            String?
+  experienceYears  Int               @default(5)
+  photoUrl         String?
+  bmdcDocumentPath String?
+  rejectionReason  String?
+  averageRating    Float             @default(0)
+  reviewCount      Int               @default(0)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  specialties  DoctorSpecialty[]
+  chambers     Chamber[]
+  appointments Appointment[]
+  reviews      Review[]
+
+  @@index([status])
+}
+
+model Specialty {
+  id            String            @id @default(cuid())
+  slug          String            @unique
+  nameEn        String            @unique
+  nameBn        String
+  descriptionEn String?
+  descriptionBn String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  doctors DoctorSpecialty[]
+}
+
+model DoctorSpecialty {
+  id          String   @id @default(cuid())
+  doctorId    String
+  specialtyId String
+  isPrimary   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  doctor    DoctorProfile @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  specialty Specialty     @relation(fields: [specialtyId], references: [id], onDelete: Cascade)
+
+  @@unique([doctorId, specialtyId])
+}
+
+model Clinic {
+  id        String    @id @default(cuid())
+  nameEn    String
+  nameBn    String
+  cityEn    String
+  cityBn    String
+  areaEn    String
+  areaBn    String
+  addressEn String
+  addressBn String
+  phone     String?
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  chambers Chamber[]
+
+  @@index([cityEn])
+}
+
+model Chamber {
+  id                 String   @id @default(cuid())
+  doctorId           String
+  clinicId           String
+  roomNumber         String?
+  feeBdt             Int
+  followUpFeeBdt     Int      @default(500)
+  slotDurationMin    Int      @default(15)
+  maxPatientsPerSlot Int      @default(1)
+  daysOfWeek         Int[]
+  startTime          String
+  endTime            String
+  blockedDates       String[] @default([])
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  doctor            DoctorProfile      @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  clinic            Clinic             @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  availabilitySlots AvailabilitySlot[]
+  appointments      Appointment[]
+
+  @@unique([doctorId, clinicId])
+  @@index([feeBdt])
+}
+
+model AvailabilitySlot {
+  id           String   @id @default(cuid())
+  chamberId    String
+  doctorId     String
+  dateStr      String
+  startTime    String
+  endTime      String
+  slotDateTime DateTime
+  serialNumber Int
+  isBooked     Boolean  @default(false)
+  isBlocked    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  chamber      Chamber       @relation(fields: [chamberId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+
+  @@unique([chamberId, dateStr, startTime])
+  @@unique([doctorId, dateStr, startTime])
+  @@index([chamberId, dateStr])
+}
+
+model Appointment {
+  id               String            @id @default(cuid())
+  patientId        String
+  doctorId         String
+  chamberId        String
+  slotId           String
+  dateStr          String
+  startTime        String
+  endTime          String
+  appointmentAt    DateTime
+  serialNumber     Int
+  feeBdt           Int
+  status           AppointmentStatus @default(CONFIRMED)
+  symptoms         String?
+  doctorNotes      String?
+  prescriptionPath String?
+  cancelledAt      DateTime?
+  cancelReason     String?
+  activeSlotKey    String?           @unique
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  patient PatientProfile   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctor  DoctorProfile    @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  chamber Chamber          @relation(fields: [chamberId], references: [id], onDelete: Cascade)
+  slot    AvailabilitySlot @relation(fields: [slotId], references: [id], onDelete: Restrict)
+  payment Payment?
+  review  Review?
+
+  @@index([patientId, appointmentAt])
+  @@index([doctorId, dateStr])
+}
+
+model Review {
+  id            String   @id @default(cuid())
+  appointmentId String   @unique
+  patientId     String
+  doctorId      String
+  rating        Int
+  comment       String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  appointment Appointment    @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  patient     PatientProfile @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctor      DoctorProfile  @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId])
+}
+
+model Payment {
+  id             String        @id @default(cuid())
+  appointmentId  String        @unique
+  amountBdt      Int
+  method         PaymentMethod @default(CASH_AT_CLINIC)
+  status         PaymentStatus @default(PENDING)
+  transactionRef String?       @unique
+  paidAt         DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  titleEn   String
+  titleBn   String
+  messageEn String
+  messageBn String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  actorUserId  String
+  targetUserId String?
+  action       String
+  entityType   String
+  entityId     String
+  details      String?
+  ipAddress    String?
+  createdAt    DateTime @default(now())
+
+  actor      User  @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: Cascade)
+  targetUser User? @relation("AuditTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+
+  @@index([actorUserId, createdAt])
+  @@index([targetUserId, createdAt])
+}
+
+model OtpVerification {
+  id         String    @id @default(cuid())
+  phone      String
+  code       String
+  expiresAt  DateTime
+  verifiedAt DateTime?
+  attempts   Int       @default(0)
+  createdAt  DateTime  @default(now())
+
+  @@index([phone, createdAt])
+}
