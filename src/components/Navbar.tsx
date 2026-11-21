@@ -44,6 +44,12 @@ export function Navbar({ user }: { user: NavbarUser | null }) {
         </Link>
 
         <div className="flex items-center gap-2 sm:gap-3">
+          <Link
+            href="/doctors"
+            className="rounded-lg px-2.5 py-1.5 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-100"
+          >
+            {t.navFindDoctors}
+          </Link>
           {user ? (
             <>
               <Link
