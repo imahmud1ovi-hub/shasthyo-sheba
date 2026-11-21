@@ -19,6 +19,7 @@ interface AppointmentItem {
   feeBdt: number;
   status: string;
   symptoms: string | null;
+  prescriptionPath?: string | null;
   doctor: {
     id: string;
     titleEn: string;
@@ -336,6 +337,16 @@ export function MyAppointmentsClient({
                     <p className="mt-1 text-xs text-slate-500">
                       {appt.symptoms}
                     </p>
+                  )}
+                  {appt.prescriptionPath && (
+                    <a
+                      href={`/api/uploads/${appt.prescriptionPath}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-2 inline-flex items-center rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
+                    >
+                      {t.myAppointments.viewPrescriptionLink}
+                    </a>
                   )}
                 </div>
 

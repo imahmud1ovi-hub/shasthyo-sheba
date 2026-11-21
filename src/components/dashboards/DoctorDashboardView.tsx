@@ -27,10 +27,38 @@ interface ChamberScheduleItem {
   };
 }
 
+interface DoctorAppointmentItem {
+  id: string;
+  dateStr: string;
+  startTime: string;
+  endTime: string;
+  serialNumber: number;
+  status: string;
+  feeBdt: number;
+  symptoms: string | null;
+  doctorNotes: string | null;
+  prescriptionPath: string | null;
+  chamber: {
+    clinic: {
+      nameEn: string;
+      nameBn: string;
+    };
+  };
+  patient: {
+    user: {
+      nameEn: string | null;
+      nameBn: string | null;
+      phone: string;
+    };
+  };
+}
+
 interface DoctorProfileData {
   id: string;
   bmdcNumber: string;
   status: string;
+  rejectionReason: string | null;
+  bmdcDocumentPath: string | null;
   titleEn: string;
   titleBn: string;
   qualificationsEn: string;
@@ -42,21 +70,231 @@ interface DoctorProfileData {
     };
   }>;
   chambers: ChamberScheduleItem[];
-  appointments: Array<{
-    id: string;
-    dateStr: string;
-    startTime: string;
-    serialNumber: number;
-    status: string;
-    feeBdt: number;
-    patient: {
-      user: {
-        nameEn: string | null;
-        nameBn: string | null;
-        phone: string;
-      };
-    };
-  }>;
+  appointments: DoctorAppointmentItem[];
+}
+
+function DoctorAppointmentCard({ appt }: { appt: DoctorAppointmentItem }) {
+  const { lang, t } = useLanguage();
+  const router = useRouter();
+
+  const [notes, setNotes] = useState(appt.doctorNotes ?? "");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const patientName =
+    (lang === "bn"
+      ? appt.patient.user.nameBn || appt.patient.user.nameEn
+      : appt.patient.user.nameEn || appt.patient.user.nameBn) ||
+    appt.patient.user.phone;
+
+  const handleStatusUpdate = async (
+    nextStatus: "CONFIRMED" | "COMPLETED" | "CANCELLED" | "NO_SHOW"
+  ) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/doctor/appointments/${appt.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        setError(json.error?.message || "Failed to update appointment.");
+        return;
+      }
+      router.refresh();
+    } catch {
+      setError("Network error.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleSaveNotes = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/doctor/appointments/${appt.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ doctorNotes: notes }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        setError(json.error?.message || "Failed to save notes.");
+        return;
+      }
+      router.refresh();
+    } catch {
+      setError("Network error.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleUploadPrescription = async (file: File | null) => {
+    if (!file) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append("prescription", file);
+      const res = await fetch(
+        `/api/doctor/appointments/${appt.id}/prescription`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        setError(json.error?.message || "Failed to upload prescription.");
+        return;
+      }
+      router.refresh();
+    } catch {
+      setError("Network error while uploading prescription.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white">
+              {t.dashboards.serialLabel}
+              {appt.serialNumber}
+            </span>
+            <span className="inline-flex items-center rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-800">
+              {appt.status}
+            </span>
+            <span className="text-xs font-bold text-slate-700">
+              {appt.dateStr} • {appt.startTime} - {appt.endTime}
+            </span>
+          </div>
+
+          <h3 className="mt-2 text-base font-bold text-slate-900">
+            {patientName}
+          </h3>
+          <p className="text-xs text-slate-600">
+            {t.doctorPortal.patientPhoneLabel}: {appt.patient.user.phone} •{" "}
+            {lang === "bn"
+              ? appt.chamber.clinic.nameBn
+              : appt.chamber.clinic.nameEn}
+          </p>
+          {appt.symptoms && (
+            <p className="mt-1 text-xs text-slate-700">
+              <span className="font-semibold">
+                {t.doctorPortal.symptomsLabel}:{" "}
+              </span>
+              {appt.symptoms}
+            </p>
+          )}
+        </div>
+
+        {/* Status Actions */}
+        <div className="flex flex-wrap gap-1.5">
+          {appt.status === "PENDING" && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => handleStatusUpdate("CONFIRMED")}
+              className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+            >
+              {t.doctorPortal.acceptBtn}
+            </button>
+          )}
+          {(appt.status === "CONFIRMED" || appt.status === "PENDING") && (
+            <>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => handleStatusUpdate("COMPLETED")}
+                className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {t.doctorPortal.completeBtn}
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => handleStatusUpdate("NO_SHOW")}
+                className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+              >
+                {t.doctorPortal.noShowBtn}
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => handleStatusUpdate("CANCELLED")}
+                className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
+              >
+                {t.doctorPortal.rejectBtn}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+          {error}
+        </div>
+      )}
+
+      {/* Clinical Notes & Prescription Upload */}
+      <div className="grid gap-4 sm:grid-cols-2 pt-3 border-t border-slate-100">
+        <div>
+          <label className="block text-xs font-bold text-slate-700">
+            {t.doctorPortal.notesLabel}
+          </label>
+          <textarea
+            rows={2}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder={t.doctorPortal.notesPlaceholder}
+            className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs"
+          />
+          <button
+            type="button"
+            disabled={busy}
+            onClick={handleSaveNotes}
+            className="mt-1.5 rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-800 hover:bg-slate-100 disabled:opacity-50"
+          >
+            {t.doctorPortal.saveNotesBtn}
+          </button>
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-slate-700">
+            {t.doctorPortal.prescriptionLabel}
+          </label>
+          <input
+            type="file"
+            accept=".pdf,image/jpeg,image/png,image/webp"
+            disabled={busy}
+            onChange={(e) =>
+              handleUploadPrescription(e.target.files?.[0] ?? null)
+            }
+            className="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 px-2.5 py-1.5 text-xs"
+          />
+          {appt.prescriptionPath && (
+            <a
+              href={`/api/uploads/${appt.prescriptionPath}`}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-2 inline-flex items-center rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
+            >
+              {t.doctorPortal.viewPrescriptionBtn}
+            </a>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function ChamberScheduleEditorCard({
@@ -168,7 +406,6 @@ function ChamberScheduleEditorCard({
         </div>
       )}
 
-      {/* Visiting Days */}
       <div>
         <label className="block text-xs font-bold text-slate-700">
           {t.dashboards.visitingDaysLabel}
@@ -194,7 +431,6 @@ function ChamberScheduleEditorCard({
         </div>
       </div>
 
-      {/* Hours, Slot Duration, Fee */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div>
           <label className="block text-xs font-bold text-slate-700">
@@ -251,7 +487,6 @@ function ChamberScheduleEditorCard({
         </div>
       </div>
 
-      {/* Blocked Dates */}
       <div>
         <label className="block text-xs font-bold text-slate-700">
           {t.dashboards.blockedDatesLabel}
@@ -318,9 +553,47 @@ export function DoctorDashboardView({
   doctorProfile: DoctorProfileData | null;
 }) {
   const { lang, t } = useLanguage();
+  const [apptTab, setApptTab] = useState<"TODAY" | "ALL">("ALL");
+
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
+    2,
+    "0"
+  )}-${String(now.getDate()).padStart(2, "0")}`;
+
+  const appointments = doctorProfile?.appointments ?? [];
+  const todayAppointments = appointments.filter((a) => a.dateStr === todayStr);
+  const displayedAppointments =
+    apptTab === "TODAY" ? todayAppointments : appointments;
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-8">
+    <main className="mx-auto max-w-5xl px-4 py-8 space-y-6">
+      {/* Status Banner for PENDING / REJECTED doctors */}
+      {doctorProfile && doctorProfile.status === "PENDING" && (
+        <div className="rounded-2xl border border-amber-300 bg-amber-50 p-5 shadow-sm">
+          <h2 className="text-sm sm:text-base font-bold text-amber-900">
+            {t.doctorPortal.pendingBannerTitle}
+          </h2>
+          <p className="mt-1 text-xs sm:text-sm text-amber-800">
+            {t.doctorPortal.pendingBannerDesc}
+          </p>
+        </div>
+      )}
+
+      {doctorProfile && doctorProfile.status === "REJECTED" && (
+        <div className="rounded-2xl border border-red-300 bg-red-50 p-5 shadow-sm">
+          <h2 className="text-sm sm:text-base font-bold text-red-900">
+            {t.doctorPortal.rejectedBannerTitle}
+          </h2>
+          {doctorProfile.rejectionReason && (
+            <p className="mt-1 text-xs sm:text-sm text-red-800">
+              {doctorProfile.rejectionReason}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Doctor Profile Header */}
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <span className="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
           {t.roleBadge[session.role]} • {session.phone}
@@ -359,8 +632,51 @@ export function DoctorDashboardView({
         )}
       </div>
 
+      {/* Patient Serials Queue (Today & All) */}
       {doctorProfile && (
-        <section className="mt-6">
+        <section>
+          <div className="flex items-center gap-2 border-b border-slate-200">
+            <button
+              type="button"
+              onClick={() => setApptTab("TODAY")}
+              className={`px-4 py-2.5 text-xs sm:text-sm font-bold border-b-2 transition ${
+                apptTab === "TODAY"
+                  ? "border-emerald-600 text-emerald-700"
+                  : "border-transparent text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              {t.doctorPortal.todayAppointmentsTab} ({todayAppointments.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setApptTab("ALL")}
+              className={`px-4 py-2.5 text-xs sm:text-sm font-bold border-b-2 transition ${
+                apptTab === "ALL"
+                  ? "border-emerald-600 text-emerald-700"
+                  : "border-transparent text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              {t.doctorPortal.allAppointmentsTab} ({appointments.length})
+            </button>
+          </div>
+
+          {displayedAppointments.length === 0 ? (
+            <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-6 text-xs sm:text-sm text-slate-500">
+              {t.doctorPortal.noAppointmentsToday}
+            </div>
+          ) : (
+            <div className="mt-4 grid gap-4">
+              {displayedAppointments.map((appt) => (
+                <DoctorAppointmentCard key={appt.id} appt={appt} />
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Chamber Schedule Editor */}
+      {doctorProfile && (
+        <section>
           <h2 className="text-lg font-bold text-slate-900">
             {t.dashboards.editScheduleTitle}
           </h2>

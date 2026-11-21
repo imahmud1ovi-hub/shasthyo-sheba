@@ -50,6 +50,14 @@ export function Navbar({ user }: { user: NavbarUser | null }) {
           >
             {t.navFindDoctors}
           </Link>
+          {(!user || user.role === "PATIENT") && (
+            <Link
+              href="/doctor/register"
+              className="hidden sm:inline-flex rounded-lg px-2.5 py-1.5 text-xs sm:text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
+            >
+              {t.navDoctorRegister}
+            </Link>
+          )}
           {user ? (
             <>
               {(user.role === "PATIENT" || user.role === "ADMIN") && (

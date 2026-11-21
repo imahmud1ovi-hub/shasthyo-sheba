@@ -37,6 +37,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
+  // Any authenticated user can access /doctor/register to apply for BM&DC verification
+  if (pathname === "/doctor/register") {
+    return NextResponse.next();
+  }
+
   if (!isRoleAllowed(session.role, matchedRule.roles)) {
     return NextResponse.redirect(new URL("/unauthorized", request.url));
   }
