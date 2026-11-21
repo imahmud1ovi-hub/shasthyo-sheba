@@ -1,4 +1,5 @@
 import { PrismaClient, Gender } from "@prisma/client";
+import { hashPassword } from "../src/lib/auth/password";
 
 const prisma = new PrismaClient();
 
@@ -330,10 +331,15 @@ async function main() {
   await prisma.otpVerification.deleteMany();
   await prisma.user.deleteMany();
 
-  // 1. Admin account: +8801700000000
+  const adminPasswordHash = hashPassword("admin123");
+  const patientPasswordHash = hashPassword("patient123");
+  const doctorPasswordHash = hashPassword("doctor123");
+
+  // 1. Admin account: +8801700000000 (password: admin123)
   const adminUser = await prisma.user.create({
     data: {
       phone: "+8801700000000",
+      passwordHash: adminPasswordHash,
       nameEn: "System Administrator",
       nameBn: "সিস্টেম অ্যাডমিনিস্ট্রেটর",
       role: "ADMIN",
@@ -341,10 +347,11 @@ async function main() {
     },
   });
 
-  // 2. Patient account: +8801711111111
+  // 2. Patient account: +8801711111111 (password: patient123)
   const patientUser = await prisma.user.create({
     data: {
       phone: "+8801711111111",
+      passwordHash: patientPasswordHash,
       nameEn: "Rahim Uddin",
       nameBn: "রহিম উদ্দিন",
       role: "PATIENT",
@@ -393,6 +400,7 @@ async function main() {
     const docUser = await prisma.user.create({
       data: {
         phone,
+        passwordHash: doctorPasswordHash,
         nameEn: docSeed.nameEn,
         nameBn: docSeed.nameBn,
         role: "DOCTOR",

@@ -48,13 +48,13 @@ Test-NetConnection 127.0.0.1 -Port 5432
 2. Click the **Install Shasthyo Sheba** icon in the right side of the address bar (or browser menu → **Apps** → **Install Shasthyo Sheba**).
 3. Confirm installation. You now have a standalone **Shasthyo Sheba** desktop icon and app window that works offline once running.
 
-### Demo Accounts (OTP Appears in the Terminal Window Running the App)
+### Demo Accounts (Phone + Password)
 
-| Role | Phone Number | Notes |
-|---|---|---|
-| **Admin** | `01700000000` (`+8801700000000`) | Approves doctors, manages clinics/specialties, views `AuditLog` |
-| **Patient** | `01711111111` (`+8801711111111`) | Pre-seeded with 1 confirmed sample appointment & payment |
-| **Doctors (20)** | `01712000001` to `01712000020` | BM&DC `A-10001` to `A-10020`, all approved with chambers |
+| Role | Phone Number | Password | Notes |
+|---|---|---|---|
+| **Admin** | `01700000000` (`+8801700000000`) | `admin123` | Approves doctors, manages clinics/specialties, views `AuditLog` |
+| **Patient** | `01711111111` (`+8801711111111`) | `patient123` | Pre-seeded with 1 confirmed sample appointment & payment |
+| **Doctors (20)** | `01712000001` to `01712000020` | `doctor123` | BM&DC `A-10001` to `A-10020`, all approved with chambers |
 
 - Stop the app anytime with `Ctrl+C` in its terminal window.
 

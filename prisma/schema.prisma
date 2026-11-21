@@ -53,6 +53,7 @@ enum Gender {
 model User {
   id            String          @id @default(cuid())
   phone         String          @unique
+  passwordHash  String?
   nameEn        String?
   nameBn        String?
   role          UserRole        @default(PATIENT)

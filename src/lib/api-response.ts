@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z, ZodError } from "zod";
 import { AuthorizationError } from "@/lib/auth/session";
 import { OtpError } from "@/lib/auth/otp";
+import { PasswordAuthError } from "@/lib/auth/password";
 import { BookingError } from "@/lib/booking/appointments";
 import { UploadValidationError } from "@/lib/uploads/storage";
 import { PaymentError } from "@/lib/payments/service";
@@ -68,6 +69,10 @@ export function handleApiError(err: unknown) {
   }
 
   if (err instanceof OtpError) {
+    return apiError(err.code, err.message, err.statusCode);
+  }
+
+  if (err instanceof PasswordAuthError) {
     return apiError(err.code, err.message, err.statusCode);
   }
 
